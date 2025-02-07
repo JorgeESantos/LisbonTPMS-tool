@@ -1,0 +1,56 @@
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore build artifacts
+*.egg-info/
+*.eggs/
+build/
+dist/
+
+# Ignore virtual environment folders
+.venv/
+venv/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore logs and environment variables
+*.log
+.env
+*.env
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+*.iml
+
+# Ignore temporary files
+*.swp
+*.swo
+
+# Ignore compiled Cython and extension files
+*.so
+*.pyd
+*.dll
+
+# Ignore pytest cache
+.pytest_cache/
+
+# Ignore coverage reports
+.coverage
+htmlcov/
+*.cover
+*.coverage.*
+
+# Ignore MyPy cache
+.mypy_cache/
+
+# Ignore editable install leftovers
+LisbonTPMStool.egg-info/
+Surfaces.py  # If Surfaces.py is an unnecessary duplicated file, add it here

@@ -3,8 +3,6 @@ from setuptools import find_packages, setup
 from subprocess import run, CalledProcessError
 from setuptools.command.install import install
 
-desktop = pathlib.Path.home() / 'Desktop'
-
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
@@ -51,7 +49,7 @@ setup(
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python",
         "Operating System :: OS Independent",
     ],
     install_requires=parse_requirements("requirements.txt"),

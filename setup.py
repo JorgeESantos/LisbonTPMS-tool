@@ -54,5 +54,5 @@ setup(
     ],
     install_requires=parse_requirements("requirements.txt"),
     setup_requires=["pip-tools"],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
 )

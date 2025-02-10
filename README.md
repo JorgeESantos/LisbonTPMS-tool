@@ -18,7 +18,7 @@ The code has been minimalised to a main Class named TPMS with methods for calcul
 
 The code is mainly dependent on NumPy [1], Scipy [2], scikit-image [3], PoreSpy [4] and PyVista [5].
 
-The default TPMS structures are present in the Surfaces.py module, with all their respective mathematical equations defined and stored in a dictionary (surfaces_dict), present in the Surfaces.py module, to be indexed by the main Class. This structure allows users to easily add more TPMS structures if desired. To do so, users must acess and mordify Surfaces.py directly and accordingly, create a function with the same syntax and add it to surfaces_dict, providing it with a name to be called by the TPMS Class. The default TPMS included are:
+The default TPMS structures are present in the Surfaces.py module, with all their respective mathematical equations defined and stored in a dictionary (surfaces_dict), to be indexed by the main Class. This structure allows users to easily add more TPMS structures if desired. To do so, users must access and modify Surfaces.py directly and accordingly, create a function with the same syntax and add it to surfaces_dict, providing it with a name to be called by the TPMS Class. The default TPMS included are:
 
 •	Fisher Kock S Surface (FKS)
 

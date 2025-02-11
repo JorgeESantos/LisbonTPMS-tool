@@ -6,7 +6,7 @@ TPMS are mathematical surfaces characterized by periodic, non-self-intersecting 
 
 # Instalation
 
-After creating a Python working environment, LisbonTPMS-tool can be installed directly from GitHub, using pip and:
+Considering Python 3.10+ and after creating a Python working environment with pip and setuptools ready, LisbonTPMS-tool can be installed directly from GitHub, using pip and:
 
 (1) Directly from source, using Git
 

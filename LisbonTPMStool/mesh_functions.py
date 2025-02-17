@@ -74,7 +74,6 @@ def mesh_origin_translation(mesh=None, vertices=None):
         if min(vertices[:, 2]) < 0.0:
             vertices[:, 2] = vertices[:, 2] + abs(min(vertices[:, 2]))
         return vertices
-    return
 
 def mesh_unit_normalization(mesh=None, vertices=None):
     """Normalizes the vertices coordinates so that the mesh boundary dimensions do not exceed 1.0."""
@@ -141,7 +140,7 @@ def mesh_normalization(mesh=None, vertices=None, dimensions=[]):
         vertices[:, 2] = vertices[:, 2] * dimensions[2]
         return vertices
 
-def mesh_from_array(im, dimensions, level=None, step_size=1.0, repair_mesh=False, normalized=True):
+def mesh_from_array(im, dimensions, level=None, step_size=1.0, repair_mesh=False, normalized=False):
     """Generates a triangular mesh from an image represented as a numpy array.
 
     The level parameter specifies the isovalue of the scalar field in the 3D array at which the isosurface is extracted.

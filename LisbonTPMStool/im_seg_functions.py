@@ -276,9 +276,11 @@ def PyVista_Voxels(im, voxel_size, threshold=None, units=None, cmap='jet', opaci
     return grid
 
 def PyVista_TriMeshes_plot(meshes, units='mm', camera_position=None, show_edges=True, save_fig=False, name='TPMS', path=None):
-    """Mounts a 3D image with multiple triangular meshes provided as list of:
+    """Mounts a 3D image with multiple triangular meshes. Each mesh is a list with the following elements:
 
-    [vertices (ndarray), faces (ndarray), face_color (str), color_opacity (float)]."""
+    [vertices (ndarray), faces (ndarray), face_color (str), color_opacity (float)].
+    
+    meshes argument should always be a list containing one or more lists like the previous one."""
 
     if not isinstance(meshes, list):
         raise ValueError('meshes must be a list in which each mesh must be of type list like [vertices, faces, face_color (str), opacity (float)].')

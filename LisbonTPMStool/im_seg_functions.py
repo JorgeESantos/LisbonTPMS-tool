@@ -275,7 +275,7 @@ def PyVista_Voxels(im, voxel_size, threshold=None, units=None, cmap='jet', opaci
     pl.close()
     return grid
 
-def PyVista_TriMeshes_plot(meshes, units='mm', camera_position=None, show_edges=True, save_fig=False, name='TPMS', path=None):
+def PyVista_TriMeshes_plot(meshes, units='mm', camera_position=None, show_edges=False, save_fig=False, name='TPMS', path=None):
     """Mounts a 3D image with multiple triangular meshes. Each mesh is a list with the following elements:
 
     [vertices (ndarray), faces (ndarray), face_color (str), color_opacity (float)].

@@ -1,0 +1,60 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: LisbonTPMStool
+message: >-
+  If you use this software/code please cite it using the
+  following information.
+type: software
+authors:
+  - given-names: Jorge E.
+    family-names: Santos
+    email: jorge.e.santos@tecnico.ulisboa.pt
+    affiliation: University of Lisbon
+    orcid: 'https://orcid.org/0000-0002-8212-8045'
+identifiers:
+  - type: doi
+    value: 10.1016/j.simpa.2025.100747
+repository-code: 'https://github.com/JorgeESantos/LisbonTPMS-tool'
+abstract: >-
+  Structures based on Triply periodic minimal surfaces
+  (TPMS) are employed in catalysis, energy storage, and
+  tissue engineering for biomedical applications, among
+  others. They excel in mechanical performance, surface
+  area, and transport properties compared to traditional
+  lattice structures. This work introduces a versatile tool
+  designed to facilitate the creation and manipulation of
+  TPMS-based structures. It provides total control over
+  lattice properties, for 3D printing and Finite Element
+  simulation purposes. By operating within a Python
+  environment, ensuring accessibility and compatibility with
+  both online and offline workflows, LisbonTPMS-tool aims to
+  become a valuable resource to employ TPMS-based structures
+  in practical applications.
+keywords:
+  - TPMS
+  - Python
+  - Open-source
+  - 3D printing
+  - Finite Element
+license: MIT
+version: 1.0.0
+date-released: '2025-01-01'
+preferred-citation:
+  type: article
+  title: "LISBON TPMS TOOL: An open-source tool for the design of TPMS structures for engineering applications"
+  authors:
+    - family-names: Santos
+      given-names: Jorge E.
+    - family-names: Ruben
+      given-names: Rui B.
+    - family-names: Fernandes
+      given-names: Paulo R.
+    - family-names: Castro
+      given-names: André
+  doi: "10.1016/j.simpa.2025.100747"
+  journal: "Software Impacts"
+  month: 3
+  volume: 24
+  year: 2025

@@ -1,8 +1,13 @@
+![Static Badge](https://img.shields.io/badge/DOI-https%3A%2F%2Fdoi.org%2F10.1016%2Fj.simpa.2025.100747-blue)
+
 # Summary
 
 LisbonTPMS-tool is a Python package designed for generating triply periodic minimal surface (TPMS) structures for applications in 3D modeling, printing, and finite element (FE) analysis.
 
 TPMS are mathematical surfaces characterized by periodic, non-self-intersecting structures with zero mean curvature. These surfaces occur naturally in various biological and physical systems and have attracted significant attention due to their unique structural properties. With the growing interest in TPMS structures, this tool provides a versatile and user-friendly solution for creating and manipulating these geometries. Their geometry can be precisely controlled and tailored for specific applications, making them highly valuable in fields such as biomedical engineering, materials science, and mechanical design.
+
+# Citation
+J.E. Santos, R.B. Ruben, P.R. Fernandes, A.P.G. Castro, LISBON TPMS TOOL: An open-source tool for the design of TPMS structures for engineering applications, Software Impacts, Volume 24, 2025, 100747, ISSN 2665-9638, https://doi.org/10.1016/j.simpa.2025.100747.
 
 # Instalation
 

@@ -43,7 +43,6 @@ version: 1.0.0
 date-released: '2025-01-01'
 preferred-citation:
   type: article
-  title: "LISBON TPMS TOOL: An open-source tool for the design of TPMS structures for engineering applications"
   authors:
     - family-names: Santos
       given-names: Jorge E.
@@ -53,8 +52,9 @@ preferred-citation:
       given-names: Paulo R.
     - family-names: Castro
       given-names: André
-  doi: "10.1016/j.simpa.2025.100747"
+  title: "LISBON TPMS TOOL: An open-source tool for the design of TPMS structures for engineering applications"
   journal: "Software Impacts"
   month: 3
   volume: 24
   year: 2025
+  doi: "10.1016/j.simpa.2025.100747"

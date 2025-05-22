@@ -400,7 +400,6 @@ iWP.level_set(target_porosity=0.75, mode='STL')
 
 #Adress Wall Thickness
 WT = Local_Thickness(im=iWP.im, voxel_size=iWP.voxel_size) #This output radius at voxel scale
-WT = WT * 2.0 * iWP.voxel_size #Diameters at voxel unit
 
 #Visualize it
 PyVista_Voxels(im=WT, voxel_size=iWP.voxel_size, threshold=0.0001, save_fig=True, name='Figure 7');
@@ -432,7 +431,6 @@ Figure 8 shows the pore size distribution of the same lattice.
 %%script false --no-raise-error
 #Adress Pore size distribution
 PSD = Local_Thickness(im=iWP.im == 0, voxel_size=iWP.voxel_size) #This output radius at voxel scale
-PSD = PSD * 2.0 * iWP.voxel_size #Diameters at voxel unit
 
 #Visualize it
 PyVista_Voxels(im=PSD, voxel_size=iWP.voxel_size, threshold=0.0001, save_fig=True, name='Figure 8')

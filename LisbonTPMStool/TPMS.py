@@ -2,7 +2,7 @@ import numpy as np
 import numbers
 from .Utilities import STL_Poro_finder, im_Poro_finder
 from .Surfaces import surfaces_dict
-from .im_seg_functions import PyVista_Binary_Voxels, trim_floating_artifacts
+from .im_seg_functions import PyVista_Binary_Voxels, get_largest_object
 
 def TPMS_domain(dimensions, voxel_size, domain_bounds=[-np.pi, np.pi]):
     return np.ogrid[domain_bounds[0]:domain_bounds[1]:complex(round(dimensions[0] / voxel_size)),
@@ -10,7 +10,7 @@ def TPMS_domain(dimensions, voxel_size, domain_bounds=[-np.pi, np.pi]):
                   domain_bounds[0]:domain_bounds[1]:complex(round(dimensions[2] / voxel_size))]
 
 class TPMS:
-    def __init__(self, name=None, grid=None, dimensions=(1.0, 1.0, 1.0), domain_bounds=[-np.pi, np.pi], voxel_size=0.05):
+    def __init__(self, name=None, grid=None, dimensions=(1.0, 1.0, 1.0), domain_bounds=[-np.pi, np.pi], voxel_size=0.005):
         # region Grid and name entries
         if grid is not None:  # trigger for grid
             self.grid = grid
@@ -74,7 +74,8 @@ class TPMS:
 
     # region Level-set
     def level_set(self, im_seed=lambda grid, c: np.where((grid >= -c) & (grid <= c), True, False),
-                  c=None, target_porosity=None, level=None, step_size=1.0, x0=None, bracket=None, mask=None, mode='STL', trim_artifacts=True, replace=False):
+                  c=None, target_porosity=None, level=None, step_size=1.0, x0=None, bracket=None, mask=None, mode='STL',
+                  trim_artifacts=True, replace=False):
 
         """This method is deemed to generate the offset based binary image.
         The im_seed defines the type of geometry to generate. Traditional Sheet or Network-based TPMS (defaults to Sheet).
@@ -94,40 +95,48 @@ class TPMS:
                         im = im_seed(self.grid, c)
                         im = mask(im)
                         if trim_artifacts:
-                            im = trim_floating_artifacts(im)
+                            #im = trim_floating_artifacts(im)
+                            im = get_largest_object(im)
                     else:
                         im = im_seed(self.grid, c)
                         if trim_artifacts:
-                            im = trim_floating_artifacts(im)
+                            #im = trim_floating_artifacts(im)
+                            im = get_largest_object(im)
                     self.c = c
                     print('Binary image created.\n')
                 elif (c is None) and (target_porosity is not None):  # If c is None, need to provide target_porosity
                     if mode == 'STL':
                         if mask is not None:
-                            c = STL_Poro_finder(self.grid, mask=mask, target_porosity=target_porosity, im_seed=im_seed,
-                                                dimensions=self.dimensions, level=level, step_size=step_size, x0=x0, bracket=bracket)
+                            c = STL_Poro_finder(grid=self.grid, im_seed=self.im_seed, voxel_size=self.voxel_size,
+                                                mask=mask, target_porosity=target_porosity,
+                                                level=level, step_size=step_size, x0=x0, bracket=bracket)
                             im = im_seed(self.grid, c)
                             im = mask(im)
                             if trim_artifacts:
-                                im = trim_floating_artifacts(im)
+                                #im = trim_floating_artifacts(im)
+                                im = get_largest_object(im)
                         else:
-                            c = STL_Poro_finder(self.grid, mask=mask, target_porosity=target_porosity, im_seed=im_seed,
-                                                dimensions=self.dimensions, level=level, step_size=step_size, x0=x0, bracket=bracket)
+                            c = STL_Poro_finder(grid=self.grid, im_seed=self.im_seed, voxel_size=self.voxel_size,
+                                                mask=mask, target_porosity=target_porosity,
+                                                level=level, step_size=step_size, x0=x0, bracket=bracket)
                             im = im_seed(self.grid, c)
                             if trim_artifacts:
-                                im = trim_floating_artifacts(im)
+                                #im = trim_floating_artifacts(im)
+                                im = get_largest_object(im)
                     elif mode == 'im':
                         if mask is not None:
                             c = im_Poro_finder(f=self.grid, mask=mask, target_porosity=target_porosity, im_seed=im_seed, x0=x0, bracket=bracket)
                             im = im_seed(self.grid, c)
                             im = mask(im)
                             if trim_artifacts:
-                                im = trim_floating_artifacts(im)
+                                #im = trim_floating_artifacts(im)
+                                im = get_largest_object(im)
                         else:
                             c = im_Poro_finder(f=self.grid, im_seed=im_seed, target_porosity=target_porosity, x0=x0, bracket=bracket)
                             im = im_seed(self.grid, c)
                             if trim_artifacts:
-                                im = trim_floating_artifacts(im)
+                                #im = trim_floating_artifacts(im)
+                                im = get_largest_object(im)
                     self.c = c
                     print('Binary image created.\n')
                 self.im = im
@@ -136,6 +145,7 @@ class TPMS:
         if replace:
             del self.grid
             del self.domain
+        return
     # endregion
 
     #region Plot im

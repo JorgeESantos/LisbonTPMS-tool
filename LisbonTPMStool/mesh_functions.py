@@ -1,51 +1,37 @@
 import numpy as np
-from skimage.measure import marching_cubes
-import os, pathlib, trimesh, pymeshlab, stl, numbers
+from skimage.measure import marching_cubes, mesh_surface_area
+from .im_seg_functions import PyVista_TriMeshes_plot
+import os, pathlib, stl, math
+from itertools import combinations
+from collections import Counter
+
+#todo consider delete dependency of numpy-stl and fully use trimesh
 
 #Triangular mesh extraction and basic transformations
+def load_stl(file_path):
+    """Using numpy-stl, uploads a triangular mesh from a .STL file."""
 
-"""In every function, the mesh argument is a trimesh object resulting from trimesh.Trimesh(vertices, faces)."""
+    # Load the STL file into an STL mesh object
+    stl_mesh = stl.mesh.Mesh.from_file(file_path)
 
-def trimesh_repair_mesh(mesh=None, vertices=None, faces=None, v_normals=None, fix_normals=True, fix_winding=True, fix_inversion=True):
-    """Repairs a triangular mesh using trimesh.
+    # The points attribute is an (n, 9) array.
+    # Reshape it into (n, 3, 3) so that each triangle has 3 vertices of 3 coordinates.
+    triangles = stl_mesh.points.reshape(-1, 3, 3)
 
-    Parameters:
-        mesh (trimesh.Trimesh, optional): Input trimesh object.
-        vertices (array-like, optional): Vertex data.
-        faces (array-like, optional): Face data.
-        fix_normals (bool): Whether to fix normals.
-        fix_winding (bool): Whether to fix winding consistency.
-        fix_inversion (bool): Whether to fix inverted faces.
+    # Flatten all triangles to get a list of all vertices (n*3, 3)
+    all_vertices = triangles.reshape(-1, 3)
 
-    Returns:
-        trimesh.Trimesh or (numpy.ndarray, numpy.ndarray): Repaired mesh or vertices and faces if input was (vertices, faces)."""
+    # Use np.unique to remove duplicates.
+    # The return_inverse parameter gives a mapping to the unique vertex indices.
+    unique_vertices, inverse_indices = np.unique(all_vertices, axis=0, return_inverse=True)
 
-    # Create mesh from vertices and faces if not provided as a trimesh object
-    if mesh is None:
-        if vertices is None or faces is None:
-            raise ValueError("Either a trimesh object or vertices and faces must be provided.")
-        else:
-            mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=v_normals)
-    # Remove infinite values
-    mesh.remove_infinite_values()
-    # Remove duplicated faces
-    mesh.update_faces(mesh.unique_faces())
-    # Remove unreferenced vertices
-    mesh.remove_unreferenced_vertices()
-    # Fix normals, winding, and inversion
-    if not mesh.is_winding_consistent:
-        if fix_normals:
-            trimesh.repair.fix_normals(mesh, multibody=True)
-        if fix_winding:
-            trimesh.repair.fix_winding(mesh)
-        if fix_inversion:
-            trimesh.repair.fix_inversion(mesh, multibody=True)
-    # Return appropriate output
-    if vertices is not None and faces is not None:
-        return mesh.vertices, mesh.faces, mesh.vertex_normals
-    return mesh
+    # Reshape the inverse indices into (n, 3) to form the face indices.
+    faces = inverse_indices.reshape(-1, 3)
 
-def mesh_origin_translation(mesh=None, vertices=None):
+    # return unique_vertices, faces, vnormals
+    return unique_vertices, faces
+
+"""def mesh_origin_translation0(mesh=None, vertices=None):
     if mesh is not None:
         if min(mesh.vertices[:, 0]) > 0.0:
             mesh.vertices[:, 0] = mesh.vertices[:, 0] - abs(min(mesh.vertices[:, 0]))
@@ -73,53 +59,46 @@ def mesh_origin_translation(mesh=None, vertices=None):
             vertices[:, 1] = vertices[:, 1] + abs(min(vertices[:, 1]))
         if min(vertices[:, 2]) < 0.0:
             vertices[:, 2] = vertices[:, 2] + abs(min(vertices[:, 2]))
-        return vertices
+        return vertices"""
+
+def mesh_origin_translation(mesh=None, vertices=None):
+    if mesh is not None:
+        vertices = mesh.vertices  # Extract vertices from the mesh
+    elif vertices is None:
+        raise ValueError('Please provide an acceptable input.\n')
+
+    # Compute the minimum coordinate along each axis
+    min_coords = np.min(vertices, axis=0)
+
+    # Translate vertices so that the minimum coordinate in each axis becomes 0.0
+    vertices -= min_coords
+
+    if mesh is not None:
+        mesh.vertices = vertices
+        return mesh
+    return vertices
 
 def mesh_unit_normalization(mesh=None, vertices=None):
-    """Normalizes the vertices coordinates so that the mesh boundary dimensions do not exceed 1.0."""
-    if mesh != None:
-        # region basic translation to 0.0
-        if min(mesh.vertices[:, 0]) > 0.0:
-            mesh.vertices[:, 0] = mesh.vertices[:, 0] - abs(min(mesh.vertices[:, 0]))
-        if min(mesh.vertices[:, 1]) > 0.0:
-            mesh.vertices[:, 1] = mesh.vertices[:, 1] - abs(min(mesh.vertices[:, 1]))
-        if min(mesh.vertices[:, 2]) > 0.0:
-            mesh.vertices[:, 2] = mesh.vertices[:, 2] - abs(min(mesh.vertices[:, 2]))
-        if min(mesh.vertices[:, 0]) < 0.0:
-            mesh.vertices[:, 0] = mesh.vertices[:, 0] + abs(min(mesh.vertices[:, 0]))
-        if min(mesh.vertices[:, 1]) < 0.0:
-            mesh.vertices[:, 1] = mesh.vertices[:, 1] + abs(min(mesh.vertices[:, 1]))
-        if min(mesh.vertices[:, 2]) < 0.0:
-            mesh.vertices[:, 2] = mesh.vertices[:, 2] + abs(min(mesh.vertices[:, 2]))
-        # endregion
-        #mesh.vertices = mesh.vertices / np.amax(mesh.vertices)
-        mesh.vertices[:, 0] = mesh.vertices[:, 0] / np.amax(mesh.vertices[:, 0])
-        mesh.vertices[:, 1] = mesh.vertices[:, 1] / np.amax(mesh.vertices[:, 1])
-        mesh.vertices[:, 2] = mesh.vertices[:, 2] / np.amax(mesh.vertices[:, 2])
-        return mesh
-    elif vertices is not None:
-        # region basic translation to 0.0
-        if min(vertices[:, 0]) > 0.0:
-            vertices[:, 0] = vertices[:, 0] - abs(min(vertices[:, 0]))
-        if min(vertices[:, 1]) > 0.0:
-            vertices[:, 1] = vertices[:, 1] - abs(min(vertices[:, 1]))
-        if min(vertices[:, 2]) > 0.0:
-            vertices[:, 2] = vertices[:, 2] - abs(min(vertices[:, 2]))
-        if min(vertices[:, 0]) < 0.0:
-            vertices[:, 0] = vertices[:, 0] + abs(min(vertices[:, 0]))
-        if min(vertices[:, 1]) < 0.0:
-            vertices[:, 1] = vertices[:, 1] + abs(min(vertices[:, 1]))
-        if min(vertices[:, 2]) < 0.0:
-            vertices[:, 2] = vertices[:, 2] + abs(min(vertices[:, 2]))
-        # endregion
-        #vertices = vertices / np.amax(vertices)
-        vertices[:, 0] = vertices[:, 0] / np.amax(vertices[:, 0])
-        vertices[:, 1] = vertices[:, 1] / np.amax(vertices[:, 1])
-        vertices[:, 2] = vertices[:, 2] / np.amax(vertices[:, 2])
-        return vertices
+    if mesh is not None:
+        vertices = mesh.vertices
+    elif vertices is None:
+        raise ValueError("mesh_unit_normalization: Please provide a mesh or vertices.\n")
 
-def mesh_normalization(mesh=None, vertices=None, dimensions=[]):
-    """Normalizes the vertices coordinates so that the mesh fits within the specified dimensions"""
+    # Translate to origin by subtracting minimum coordinate along each axis
+    min_coords = np.min(vertices, axis=0)
+    vertices -= min_coords
+
+    # Normalize so that the maximum coordinate along any axis becomes 1.0
+    max_coords = np.max(vertices, axis=0)
+    vertices /= max_coords
+
+    if mesh is not None:
+        mesh.vertices = vertices
+        return mesh
+    return vertices
+
+"""def mesh_normalization(mesh=None, vertices=None, dimensions=[]):
+    #Normalizes the vertices coordinates so that the mesh fits within the specified dimensions
     if isinstance(dimensions, (tuple, list, np.ndarray)):
         if len(dimensions) != 3:
             print('"dimensions" must have 3 values (x, y, z).\n')
@@ -138,9 +117,137 @@ def mesh_normalization(mesh=None, vertices=None, dimensions=[]):
         vertices[:, 0] = vertices[:, 0] * dimensions[0]
         vertices[:, 1] = vertices[:, 1] * dimensions[1]
         vertices[:, 2] = vertices[:, 2] * dimensions[2]
-        return vertices
+        return vertices"""
 
-def mesh_from_array(im, dimensions, level=None, step_size=1.0, repair_mesh=False, normalized=False):
+def mesh_normalization(mesh=None, vertices=None, dimensions=(1.0, 1.0, 1.0)):
+    """Normalizes the vertices to fit within the specified bounding dimensions (x, y, z)."""
+
+    #region Ensure dimensions is a 3-tuple
+    if isinstance(dimensions, (int, float)):
+        dimensions = (dimensions, dimensions, dimensions)
+    elif isinstance(dimensions, (list, tuple, np.ndarray)):
+        if len(dimensions) != 3:
+            raise ValueError('mesh_normalization: "dimensions" must have exactly 3 values (x, y, z).\n')
+        dimensions = tuple(dimensions)
+    else:
+        raise TypeError('mesh_normalization: "dimensions" must be a number or a sequence of 3 numbers.\n')
+    #endregion
+
+    # Normalize vertices to unit cube
+    if mesh is not None:
+        mesh = mesh_unit_normalization(mesh=mesh)
+        mesh.vertices *= dimensions  # Element-wise scaling
+        return mesh
+    elif vertices is not None:
+        vertices = mesh_unit_normalization(vertices=vertices)
+        vertices *= dimensions
+        return vertices
+    else:
+        raise ValueError('mesh_normalization: Please provide either a mesh or vertices.\n')
+
+#Basic mesh characterization
+def is_watertight(faces):
+    """Check if a triangular mesh is watertight using itertools.combinations.
+
+    A mesh is watertight if every edge (ignoring order) is shared by exactly two triangles, no more, and no less.
+
+    Parameters:
+        triangles (np.ndarray): An (m, 3) array of indices into the vertices array.
+
+    Returns:
+        bool: True if the mesh is watertight, False otherwise."""
+
+    # Generator that yields each edge as a sorted tuple
+    def generate_edges():
+        for face in faces:
+            # combinations(face, 2) yields all pairs of vertices in the face
+            for edge in combinations(face, 2):
+                yield tuple(sorted(edge))
+
+    # Count how many times each edge occurs
+    edge_counts = Counter(generate_edges())
+
+    # Every edge must appear exactly twice for a watertight mesh
+    return all(count == 2 for count in edge_counts.values())
+def mesh_volume(vertices, faces): #Important for geometry volume control
+    """This function calculates the volume of a closed triangular mesh according to:
+
+    Cha Zhang and Tsuhan Chen,
+    "Efficient feature extraction for 2D/3D objects in mesh representation",
+    Proceedings 2001 International Conference on Image Processing (Cat. No.01CH37205),
+    Thessaloniki, Greece, 2001,
+    pp. 935-938 vol.3,
+    doi: 10.1109/ICIP.2001.958278."""
+
+    volSTL = 0.0
+    for i in range(len(faces)):
+        x1 = vertices[faces[i][0], 0]
+        y1 = vertices[faces[i][0], 1]
+        z1 = vertices[faces[i][0], 2]
+        x2 = vertices[faces[i][1], 0]
+        y2 = vertices[faces[i][1], 1]
+        z2 = vertices[faces[i][1], 2]
+        x3 = vertices[faces[i][2], 0]
+        y3 = vertices[faces[i][2], 1]
+        z3 = vertices[faces[i][2], 2]
+        tA = x3 * y2 * z1
+        tB = x2 * y3 * z1
+        tC = x3 * y1 * z2
+        tD = x1 * y3 * z2
+        tE = x2 * y1 * z3
+        tF = x1 * y2 * z3
+        volSTL = 1 / 6 * (-tA + tB + tC - tD - tE + tF) + volSTL
+    return volSTL
+
+"""def get_edges_lenght(mesh=None, vertices=None, faces=None):
+    #The edges length distribution is directly related to the mesh resolution.
+
+    if mesh is not None:
+        edges = mesh.vertices[mesh.edges_unique]
+        edge_lengths = np.linalg.norm(edges[:, 0, :] - edges[:, 1, :], axis=1)
+    elif (vertices is not None) and (faces is not None):
+        mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+        edges = mesh.vertices[mesh.edges_unique]
+        edge_lengths = np.linalg.norm(edges[:, 0, :] - edges[:, 1, :], axis=1)
+    return edge_lengths"""
+
+def get_edges_length(mesh=None, vertices=None, faces=None):
+    """Computes the lengths of all unique edges in a triangular mesh.
+
+    Parameters:
+        vertices (np.ndarray): (n, 3) array of vertex coordinates.
+        faces (np.ndarray): (m, 3) array of triangle indices.
+
+    Returns:
+        np.ndarray: Array of unique edge lengths."""
+
+    # Check if inputs are valid
+    if mesh is None:
+        if vertices is None or faces is None:
+            raise ValueError("get_edges_length: You must provide either a 'mesh' object or both 'vertices' and 'faces'.\n")
+
+    if mesh is not None:
+        vertices = mesh.vertices
+        faces = mesh.faces
+
+    # Set to hold unique edges (as sorted tuples)
+    edge_set = set()
+    for face in faces:
+        # Generate all 3 edges of the triangle
+        for i, j in combinations(face, 2):
+            edge = tuple(sorted((i, j)))
+            edge_set.add(edge)
+
+    # Convert to array of vertex index pairs
+    unique_edges = np.array(list(edge_set))
+
+    # Compute edge lengths
+    edge_vectors = vertices[unique_edges[:, 0]] - vertices[unique_edges[:, 1]]
+    edge_lengths = np.linalg.norm(edge_vectors, axis=1)
+
+    return edge_lengths
+
+def mesh_from_array0(im, dimensions, level=None, step_size=1.0, normalized=True):
     """Generates a triangular mesh from an image represented as a numpy array.
 
     The level parameter specifies the isovalue of the scalar field in the 3D array at which the isosurface is extracted.
@@ -175,8 +282,6 @@ def mesh_from_array(im, dimensions, level=None, step_size=1.0, repair_mesh=False
             verts, faces, vnormals, _ = marching_cubes((bbox == 0.0), level=level, step_size=step_size, allow_degenerate=False)
             del bbox
             verts = (verts - 1.0) / (min(im.shape) - 1) * min(dimensions)
-            if repair_mesh:
-                verts, faces, vnormals = trimesh_repair_mesh(vertices=verts, faces=faces, v_normals=vnormals)
             if normalized:
                 verts = mesh_normalization(vertices=verts, dimensions=dimensions) #This should only be done to STL and FE generation
             return verts, faces, vnormals
@@ -185,177 +290,20 @@ def mesh_from_array(im, dimensions, level=None, step_size=1.0, repair_mesh=False
     else:
         print("Input image was blank/empty. No mesh generated.\n")
 
-def trimesh_to_voxel(mesh, voxel_size=1.0):
-    """Using trimesh, converts a closed triangular mesh into a voxel representation."""
-    voxel_grid = mesh.voxelized(voxel_size).fill()
-    matrix = np.array(voxel_grid.matrix).astype(bool)
-    return voxel_grid, matrix
-
-#Basic mesh characterization
-
-def Mesh_Volume(vertices, faces): #Important for geometry volume control
-    """This function calculates the volume of a closed triangular mesh according to:
-
-    Cha Zhang and Tsuhan Chen,
-    "Efficient feature extraction for 2D/3D objects in mesh representation",
-    Proceedings 2001 International Conference on Image Processing (Cat. No.01CH37205),
-    Thessaloniki, Greece, 2001,
-    pp. 935-938 vol.3,
-    doi: 10.1109/ICIP.2001.958278."""
-
-    volSTL = 0.0
-    for i in range(len(faces)):
-        x1 = vertices[faces[i][0], 0]
-        y1 = vertices[faces[i][0], 1]
-        z1 = vertices[faces[i][0], 2]
-        x2 = vertices[faces[i][1], 0]
-        y2 = vertices[faces[i][1], 1]
-        z2 = vertices[faces[i][1], 2]
-        x3 = vertices[faces[i][2], 0]
-        y3 = vertices[faces[i][2], 1]
-        z3 = vertices[faces[i][2], 2]
-        tA = x3 * y2 * z1
-        tB = x2 * y3 * z1
-        tC = x3 * y1 * z2
-        tD = x1 * y3 * z2
-        tE = x2 * y1 * z3
-        tF = x1 * y2 * z3
-        volSTL = 1 / 6 * (-tA + tB + tC - tD - tE + tF) + volSTL
-    return volSTL
-
-def get_edges_lenght(mesh=None, vertices=None, faces=None):
-    """The edges length distribution is directly related to the mesh resolution."""
-    if mesh is not None:
-        edges = mesh.vertices[mesh.edges_unique]
-        edge_lengths = np.linalg.norm(edges[:, 0, :] - edges[:, 1, :], axis=1)
-    elif (vertices is not None) and (faces is not None):
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-        edges = mesh.vertices[mesh.edges_unique]
-        edge_lengths = np.linalg.norm(edges[:, 0, :] - edges[:, 1, :], axis=1)
-    return edge_lengths
-
-#Advanced Mesh processing
-
-def trimesh_mesh_smoothing(mesh=None, vertices=None, faces=None, vnormals=None,
-                           preserve_Boundaries=True, lamb=0.3, iter=60):
-    """Laplacian smoothing using trimesh."""
-
-    if mesh is not None:
-        if preserve_Boundaries:
-            vertices = mesh.vertices
-            boundary_vertices = np.argwhere(
-                (vertices[:, 0] == min(vertices[:, 0])) | (vertices[:, 1] == min(vertices[:, 1])) | (
-                        vertices[:, 2] == min(vertices[:, 2])) |
-                (vertices[:, 0] == max(vertices[:, 0])) | (vertices[:, 1] == max(vertices[:, 1])) | (
-                        vertices[:, 2] == max(vertices[:, 2])))
-            boundary_vertices = np.array([int(i) for i in boundary_vertices])
-            lap_operator = trimesh.smoothing.laplacian_calculation(mesh=mesh, equal_weight=True,
-                                                                   pinned_vertices=boundary_vertices)
-            mesh_smoothed = trimesh.smoothing.filter_laplacian(mesh, lamb=lamb, iterations=iter,
-                                                               laplacian_operator=lap_operator, volume_constraint=True)
-            mesh_smoothed = trimesh_repair_mesh(mesh_smoothed)
-        elif not preserve_Boundaries:
-            mesh_smoothed = trimesh.smoothing.filter_laplacian(mesh, lamb=lamb, iterations=iter, volume_constraint=True)
-            mesh_smoothed = trimesh_repair_mesh(mesh_smoothed)
-        print('Mesh smoothing performed.\n')
-        return mesh_smoothed
-    elif vertices is not None:
-        if vnormals is not None:
-            mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_normals=vnormals)
-        else:
-            mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-        mesh = trimesh_repair_mesh(mesh)
-        if preserve_Boundaries:
-            vertices = mesh.vertices
-            boundary_vertices = np.argwhere(
-                (vertices[:, 0] == min(vertices[:, 0])) | (vertices[:, 1] == min(vertices[:, 1])) | (
-                            vertices[:, 2] == min(vertices[:, 2])) |
-                (vertices[:, 0] == max(vertices[:, 0])) | (vertices[:, 1] == max(vertices[:, 1])) | (
-                            vertices[:, 2] == max(vertices[:, 2])))
-            boundary_vertices = np.array([int(i) for i in boundary_vertices])
-            lap_operator = trimesh.smoothing.laplacian_calculation(mesh=mesh, equal_weight=True,
-                                                                   pinned_vertices=boundary_vertices)
-            mesh_smoothed = trimesh.smoothing.filter_laplacian(mesh, lamb=lamb, iterations=iter,
-                                                               laplacian_operator=lap_operator, volume_constraint=True)
-            mesh_smoothed = trimesh_repair_mesh(mesh_smoothed)
-        elif not preserve_Boundaries:
-            mesh_smoothed = trimesh.smoothing.filter_laplacian(mesh, lamb=lamb, iterations=iter, volume_constraint=True)
-            mesh_smoothed = trimesh_repair_mesh(mesh_smoothed)
-        print('Mesh smoothing performed.\n')
-        return mesh.vertices, mesh.faces, mesh.vertex_normals
-
-def pymeshlab_laplcacian_smoothing(iter=2, mesh=None, vertices=None, faces=None, normals=None, preserve_boundary=True):
-    """Smoothing using pymeshlab."""
-    if mesh is not None:
-        m = pymeshlab.Mesh(vertex_matrix=mesh.vertices.astype(np.float64), face_matrix=mesh.faces.astype(np.float64),
-                           v_normals_matrix=mesh.vertex_normals.astype(np.float64))
-        ms = pymeshlab.MeshSet()
-        ms.add_mesh(m)
-        ms.set_current_mesh(0)
-        if preserve_boundary:
-            # Selecting non_boundary vertices
-            vertices = ms.current_mesh().vertex_matrix()
-            cond_select = f"(x > {min(vertices[:, 0])}) && (x < {max(vertices[:, 0])}) && " \
-                          f"(y > {min(vertices[:, 1])}) && (y < {max(vertices[:, 1])}) && " \
-                          f"(z > {min(vertices[:, 2])}) && (z < {max(vertices[:, 2])})"
-            ms.compute_selection_by_condition_per_vertex(condselect=cond_select)
-            # perform the laplacian smoothing
-            ms.apply_coord_laplacian_smoothing(stepsmoothnum=int(iter), boundary=True, cotangentweight=True, selected=True)
-            print('Mesh smoothing performed.\n')
-        else:
-            ms.apply_coord_laplacian_smoothing(stepsmoothnum=int(iter), boundary=True, cotangentweight=True, selected=False)
-            print('Mesh smoothing performed.\n')
-        return trimesh.Trimesh(vertices=ms.current_mesh().vertex_matrix(),
-                               faces=ms.current_mesh().face_matrix())
-    elif vertices is not None:
-        if normals is not None:
-            m = pymeshlab.Mesh(vertex_matrix=vertices.astype(np.float64), face_matrix=faces.astype(np.float64),
-                               v_normals_matrix=normals.astype(np.float64))
-        else:
-            m = pymeshlab.Mesh(vertex_matrix=vertices.astype(np.float64), face_matrix=faces.astype(np.float64))
-        ms = pymeshlab.MeshSet()
-        ms.add_mesh(m)
-        ms.set_current_mesh(0)
-        if preserve_boundary:
-            # Selecting non_boundary vertices
-            vertices = ms.current_mesh().vertex_matrix()
-            cond_select = f"(x > {min(vertices[:, 0])}) && (x < {max(vertices[:, 0])}) && " \
-                          f"(y > {min(vertices[:, 1])}) && (y < {max(vertices[:, 1])}) && " \
-                          f"(z > {min(vertices[:, 2])}) && (z < {max(vertices[:, 2])})"
-            ms.compute_selection_by_condition_per_vertex(condselect=cond_select)
-            # perform the laplacian smoothing
-            ms.apply_coord_laplacian_smoothing(stepsmoothnum=int(iter), boundary=True, cotangentweight=True,
-                                               selected=True)
-            print('Mesh smoothing performed.\n')
-        else:
-            ms.apply_coord_laplacian_smoothing(stepsmoothnum=int(iter), boundary=True, cotangentweight=True,
-                                               selected=False)
-            print('Mesh smoothing performed.\n')
-        return ms.current_mesh().vertex_matrix(), ms.current_mesh().face_matrix()
-
-def pymeshlab_isotropic_remeshing(vertices, faces, vnormals=None, iter=30, targetlen=1.0, adaptative=False, refinestep=True, collapsestep=True, smoothstep=True):
-    """Isotropic remeshing using pymeshlab. Mostly used to simplify the mesh although the user can choose decimation if preferred."""
-    print('Isotropic remeshing initiated.\n')
-    ms = pymeshlab.MeshSet()
-    if vnormals is None:
-        new_Mesh = pymeshlab.Mesh(vertex_matrix=vertices.astype(np.float64), face_matrix=faces.astype(np.float64))
-        ms.add_mesh(new_Mesh)
-    else:
-        new_Mesh = pymeshlab.Mesh(vertex_matrix=vertices.astype(np.float64), face_matrix=faces.astype(np.float64),
-                                  v_normals_matrix=vnormals.astype(np.float64))
-        ms.add_mesh(new_Mesh)
-    ms.meshing_isotropic_explicit_remeshing(iterations=iter, adaptive=adaptative, selectedonly=False,
-                                            targetlen=pymeshlab.PercentageValue(targetlen), featuredeg=30, checksurfdist=True,
-                                            maxsurfdist=pymeshlab.PercentageValue(1.0),
-                                            splitflag=refinestep, collapseflag=collapsestep, swapflag=True, smoothflag=smoothstep,
-                                            reprojectflag=True)
-    print('Isotropic remeshing performed.\n')
-    return ms.current_mesh().vertex_matrix(), ms.current_mesh().face_matrix()
-
 #Saving
-
-def STL_from_mesh(vertices=None, faces=None, repair=True, name='TPMS', path=None):
+def STL_from_mesh(mesh=None, vertices=None, faces=None, name='TPMS', path=None):
     """Saves a triangular mesh into a binary .STL file for 3D printing purposes."""
+
+    # Check if inputs are valid
+    if mesh is None:
+        if vertices is None or faces is None:
+            raise ValueError("STL_from_mesh: You must provide either a 'mesh' object or both 'vertices' and 'faces'.\n")
+
+    if mesh is not None:
+        vertices = mesh.vertices
+        faces = mesh.faces
+
+    #region path creation
     if path is not None:
         if not os.path.exists(path):
             os.mkdir(path)
@@ -367,46 +315,143 @@ def STL_from_mesh(vertices=None, faces=None, repair=True, name='TPMS', path=None
             path = pathlib.Path.home() / 'Desktop'
         elif dir_f == 2:
             path = pathlib.Path.home() / 'Documents'
-    if (vertices is not None) and (faces is not None):
-        file = str(name) + '_' + str(round(max(vertices[:, 0]))) \
-               + 'x' + str(round(max(vertices[:, 1]))) \
-               + 'x' + str(round(max(vertices[:, 2])))
-        path = os.path.join(path, file)
-        if not os.path.exists(path):
-            os.mkdir(path)
-            os.chmod(path, 0o777)
-        #Repair the mesh
-        if repair:
-            vertices, faces, _ = trimesh_repair_mesh(vertices=vertices, faces=faces)
-        # region STL writting
-        STL_path = os.path.join(path, str(name) + '.stl')
-        mesh_obj = stl.mesh.Mesh(np.zeros(faces.shape[0], dtype=stl.mesh.Mesh.dtype))
-        # Set vertices and faces
-        mesh_obj.vectors[:] = vertices[faces]
-        mesh_obj.save(STL_path)
-        # endregion
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-        del vertices
-        del faces
-        #Save mesh data
-        with open(os.path.join(path, 'Properties.txt'), 'w') as txt:
-            txt.write('Domain boundaries:\n')
-            txt.write('x_min {}\n'.format(min(mesh.vertices[:, 0])))
-            txt.write('x_max {}\n'.format(max(mesh.vertices[:, 0])))
-            txt.write('y_min {}\n'.format(min(mesh.vertices[:, 1])))
-            txt.write('y_max {}\n'.format(max(mesh.vertices[:, 1])))
-            txt.write('z_min {}\n'.format(min(mesh.vertices[:, 2])))
-            txt.write('z_max {}\n'.format(max(mesh.vertices[:, 2])))
-            txt.write('\n')
-            txt.write('Mesh Properties:\n')
-            txt.write('Edge Length mean +- std: ' + f'{np.mean(get_edges_lenght(mesh=mesh)):.5f} +- {np.std(get_edges_lenght(mesh=mesh)):.5f}\n')
-            txt.write('SA: {}\n'.format(round(mesh.area, 5)))
-            txt.write('Volume: {}\n'.format(round(mesh.mass_properties['volume'], 5)))
-            txt.write(f'Mesh SSA: {round(mesh.area / mesh.mass_properties["volume"], 5)}\n')
-            txt.write('Mesh is watertight: {}\n'.format(str(mesh.is_watertight)))
-            txt.close()
-        print('Files writen.\n')
-    else:
-        raise ValueError('Please provide the vertices and faces of the triangular mesh.\n')
+    file = str(name) + '_' + str(round(max(vertices[:, 0]))) \
+           + 'x' + str(round(max(vertices[:, 1]))) \
+           + 'x' + str(round(max(vertices[:, 2])))
+    path = os.path.join(path, file)
+    if not os.path.exists(path):
+        os.mkdir(path)
+        os.chmod(path, 0o777)
+    # endregion
+
+    # region STL writting
+    STL_path = os.path.join(path, str(name) + '.stl')
+    mesh_obj = stl.mesh.Mesh(np.zeros(faces.shape[0], dtype=stl.mesh.Mesh.dtype))
+    # Set vertices and faces
+    mesh_obj.vectors[:] = vertices[faces]
+    mesh_obj.save(STL_path)
+    del mesh_obj
+    # endregion
+
+    #Save mesh data
+    with open(os.path.join(path, 'Properties.txt'), 'w') as txt:
+        txt.write('Domain boundaries:\n')
+        txt.write('x_min {}\n'.format(min(vertices[:, 0])))
+        txt.write('x_max {}\n'.format(max(vertices[:, 0])))
+        txt.write('y_min {}\n'.format(min(vertices[:, 1])))
+        txt.write('y_max {}\n'.format(max(vertices[:, 1])))
+        txt.write('z_min {}\n'.format(min(vertices[:, 2])))
+        txt.write('z_max {}\n'.format(max(vertices[:, 2])))
+        txt.write('\n')
+        txt.write('Mesh Properties:\n')
+        txt.write('Edge Length mean +- std: ' + f'{np.mean(get_edges_length(vertices=vertices, faces=faces)):.5f} +- {np.std(get_edges_length(vertices=vertices, faces=faces)):.5f}\n')
+        txt.write('SA: {}\n'.format(round(mesh_surface_area(verts=vertices, faces=faces), 5)))
+        txt.write('Volume: {}\n'.format(round(mesh_volume(vertices, faces), 5)))
+        txt.write(f'Mesh SSA: {round(mesh_surface_area(verts=vertices, faces=faces) / mesh_volume(vertices, faces), 5)}\n')
+        txt.write('Mesh is watertight: {}\n'.format(str(is_watertight(faces))))
+        txt.close()
+    print('Files writen.\n')
     return STL_path
+
+class mesh_from_array:
+    """Generates a triangular mesh from an image represented as a numpy array.
+
+        The level parameter specifies the isovalue of the scalar field in the 3D array at which the isosurface is extracted.
+        It determines the "threshold" at which the marching cubes algorithm finds the boundary between two regions
+        (e.g., foreground and background in a binary or grayscale image).
+
+        How It Works:
+
+        The algorithm treats the 3D array as a scalar field, where each voxel has an intensity value.
+        The level parameter defines the value of this scalar field at which the surface of interest exists.
+        For binary data (0 and 1), the typical value of level is 0.5, which corresponds to the midpoint between the two voxel intensities,
+        and the fractional distance between the voxel centroids.
+
+        The step_size parameter is basically the marching cubes kernel size. It cannot be inferior to 1.0.
+        It specifies how many voxels the algorithm skips when processing the 3D array.
+
+        How It Works:
+
+        The marching cubes algorithm works by evaluating cubes formed by adjacent voxels in the 3D array.
+        A step_size of 1 means the algorithm evaluates every voxel and its neighbours,
+        resulting in the highest possible resolution for the mesh.
+        A larger step_size skips voxels, reducing the number of cubes processed. It should be an integer."""
+    def __init__(self, im, level=None, step_size=1.0):
+        self.vertices = None
+        self.faces = None
+        self.vertex_normals = None
+        self.level = level
+
+        #if (im.size == 0) or (np.amax(im) == 0): #This might hurt STL_Poro_finder
+        if (im.size == 0):
+            raise ValueError('mesh_from_array: Provided image is empty.\n')
+
+        if np.all(np.isin(im, [0.0, 1.0])):
+            im = im.astype(bool)
+        else:
+            raise Exception('mesh_from_array: The provided image is not boolean.\n')
+
+        if step_size < 1.0:
+            print('step_size cannot be inferior to 1.0.\n')
+            self.step_size = 1.0
+        else:
+            self.step_size = step_size
+
+        # region Extract The mesh
+        #Create the black box
+        bbox = np.pad(array=im, pad_width=int(math.ceil(step_size)), mode='constant', constant_values=False)
+        #bbox = np.pad(array=im, pad_width=int(1), mode='constant', constant_values=False)
+
+        #Mesh extraction
+        if np.amax(bbox) > 0.0:
+            try:
+                vertices, faces, vnormals, _ = marching_cubes((bbox == 0.0), level=self.level, step_size=self.step_size,
+                                                              allow_degenerate=False)
+                self.vertices = vertices
+                self.faces = faces
+                self.vertex_normals = vnormals
+            except Exception as e: #This should be ok
+                print(f"Error in mesh_from_array: {e}")
+                self.vertices = None
+                self.faces = None
+                self.vertex_normals = None
+        #endregion
+
+    #region mesh transformations
+    def origin_translation(self):
+        if self.vertices is not None:
+            self.vertices = mesh_origin_translation(vertices=self.vertices)
+        else:
+            pass
+
+    def apply_scale(self, voxel_spacing):
+        if self.vertices is not None:
+            self.vertices *= voxel_spacing
+            self.voxel_spacing = voxel_spacing
+        else:
+            pass
+    #endregion
+
+    #region mesh characterization
+    def is_watertight(self):
+        self.is_watertight = is_watertight(self.faces)
+        return is_watertight(self.faces) #todo do I want to keep this as a method or a pre-computed attribute?
+
+    def calculate_volume(self):
+        if self.vertices is not None:
+            #self.volume = mesh_volume(mesh_origin_translation(vertices=self.vertices), self.faces)
+            return mesh_volume(mesh_origin_translation(vertices=self.vertices), self.faces)
+        else:
+            return 0.0
+
+    def calculate_surface_area(self):
+        if self.vertices is not None:
+            #self.SA = mesh_surface_area(verts=self.vertices, faces=self.faces)
+            return mesh_surface_area(verts=self.vertices, faces=self.faces)
+        else:
+            return 0.0
+    #endregion
+
+    def mesh_show(self, color='oldlace', opacity=1.0, show_edges=False):
+        PyVista_TriMeshes_plot([[self.vertices, self.faces, color, opacity]], show_edges=show_edges)
 

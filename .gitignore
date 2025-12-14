@@ -1,56 +1,24 @@
-# Ignore Python bytecode files
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
 
-# Ignore build artifacts
-*.egg-info/
-*.eggs/
+# setuptools/build artifacts
+.eggs/
 build/
 dist/
+*.egg-info/
 
-# Ignore virtual environment folders
+# Virtual environment
 .venv/
+env/
 venv/
 
-# Ignore OS-specific files
-.DS_Store
-Thumbs.db
-
-# Ignore logs and environment variables
-*.log
-.env
-*.env
-
-# Ignore Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# Ignore IDE-specific files
+# PyCharm
 .idea/
-.vscode/
-*.iml
 
-# Ignore temporary files
-*.swp
-*.swo
-
-# Ignore compiled Cython and extension files
-*.so
-*.pyd
-*.dll
-
-# Ignore pytest cache
-.pytest_cache/
-
-# Ignore coverage reports
-.coverage
-htmlcov/
-*.cover
-*.coverage.*
-
-# Ignore MyPy cache
-.mypy_cache/
-
-# Ignore editable install leftovers
-LisbonTPMStool.egg-info/
-Surfaces.py  # If Surfaces.py is an unnecessary duplicated file, add it here
+# macOS
+.DS_Store
+dist/
+build/
+LisbonTPMStool/LisbonTPMStool.egg-info/

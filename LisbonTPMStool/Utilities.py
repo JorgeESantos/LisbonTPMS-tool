@@ -1,5 +1,5 @@
-from .mesh_functions import mesh_from_array, Mesh_Volume
-from .im_seg_functions import norm_array, trim_floating_artifacts
+from .mesh_functions import mesh_from_array
+from .im_seg_functions import norm_array, get_largest_object
 import numpy as np
 import scipy.optimize as spot
 
@@ -13,32 +13,30 @@ def gradient(domain, initial_value, final_value, f=lambda x, y, z: x):
     f = f(domain[0], domain[1], domain[2])
     return (final_value - initial_value) * norm_array(f) + initial_value
 
-def STL_Poro_finder(f, target_porosity, dimensions=(1.0, 1.0, 1.0), level=None, step_size=1.0, mask=None, im_seed=lambda f, c: np.where((f >= -c) & (f <= c), True, False),
+"""def STL_Poro_finder0(f, target_porosity, dimensions=(1.0, 1.0, 1.0), level=None, step_size=1.0, mask=None, im_seed=lambda f, c: np.where((f >= -c) & (f <= c), True, False),
                     trim_artifacts=True, x0=None, bracket=None):
-    """This new function takes a mutable/or not grid (f) as input and computes
-    the level-set variable c variable that would allow for the mesh porosity control."""
 
     print('Searching for level set value (c).\n')
     def level_set(c):
         im = im_seed(f, c).astype(bool)
-        """if trim_artifacts:
-            im = trim_floating_artifacts(im)"""
+        #if trim_artifacts:
+            #im = trim_floating_artifacts(im)
         #region Volume processing
         if np.amax(im) > 0:
             try:
                 if mask is not None:
                     #Processing mask total volume
-                    verts0, faces0, _ = mesh_from_array(im=mask(np.ones_like(im).astype(bool)), dimensions=dimensions, level=level, step_size=step_size)
-                    maskV = Mesh_Volume(vertices=verts0, faces=faces0)
+                    verts0, faces0, _ = mesh_from_array0(im=mask(np.ones_like(im).astype(bool)), dimensions=dimensions, level=level, step_size=step_size)
+                    maskV = mesh_volume(vertices=verts0, faces=faces0)
                     del verts0
                     del faces0
                     #Processing im volume
                     im = mask(im)
                     if trim_artifacts:
                         im = trim_floating_artifacts(im)
-                    vertices, faces, normals = mesh_from_array(im=im, dimensions=dimensions, level=level, step_size=step_size)
+                    vertices, faces, normals = mesh_from_array0(im=im, dimensions=dimensions, level=level, step_size=step_size)
                     del im
-                    STL_P = (maskV - Mesh_Volume(vertices, faces)) / maskV
+                    STL_P = (maskV - mesh_volume(vertices, faces)) / maskV
                     if STL_P < 0.0:
                         STL_P = 0.0
                     return STL_P
@@ -46,11 +44,11 @@ def STL_Poro_finder(f, target_porosity, dimensions=(1.0, 1.0, 1.0), level=None, 
                     if trim_artifacts:
                         im = trim_floating_artifacts(im)
                     #Vt = np.prod(dimensions)
-                    vertices, faces, normals = mesh_from_array(im=im, dimensions=dimensions, level=level, step_size=step_size)
+                    vertices, faces, normals = mesh_from_array0(im=im, dimensions=dimensions, level=level, step_size=step_size)
                     #Vt = max(vertices[:, 0]) * max(vertices[:, 1]) * max(vertices[:, 2])
                     #STL_P = (Vt - Mesh_Volume(vertices, faces)) / Vt
                     del im
-                    STL_P = (np.prod(dimensions) - Mesh_Volume(vertices, faces)) / np.prod(dimensions)
+                    STL_P = (np.prod(dimensions) - mesh_volume(vertices, faces)) / np.prod(dimensions)
                     if STL_P < 0.0:
                         STL_P = 0.0
                     return STL_P
@@ -75,7 +73,94 @@ def STL_Poro_finder(f, target_porosity, dimensions=(1.0, 1.0, 1.0), level=None, 
         return result.root
     except TypeError:
         return 0.0
-    #endregion
+    #endregion"""
+
+#Insert new STl_poro_finder
+def STL_Poro_finder(grid, im_seed, target_porosity, voxel_size, level=None, step_size=1.0, mask=None,
+                    trim_artifacts=True, x0=None, bracket=None, xtol=1e-6, method='brentq'):
+
+    """This new function takes a mutable/or not grid (f) as input and computes
+    the level-set variable c variable that would allow for the mesh porosity control."""
+
+    print('Searching for level set value (c).\n')
+    if bracket is None:
+        bracket = [np.amin(grid), np.amax(grid)]
+    if x0 is None:
+        x0 = np.mean(bracket)
+        if x0 == 0.0:
+            x0 = grid[grid != 0][np.argmin(np.abs(grid[grid != 0]))] #finds the closest value to 0
+
+    print(f'Search bracket selected: [{round(bracket[0], 3)}, {round(bracket[1], 3)}]\n')
+    print(f'Initial guess selected: {round(x0, 3)}\n')
+    def level_set(c):
+        im = im_seed(grid, c).astype(bool)
+        """if trim_artifacts:
+            im = get_largest_object(im)""" #todo still ensure if I should do this
+        #region Volume processing
+        if np.amax(im) > 0: #if it is not empty
+            try: #try generate mesh and extract volume
+                if mask is not None:
+                    #region Processing mask total volume
+                    mask_mesh = mesh_from_array(im=mask(np.ones_like(grid).astype(bool)), level=level, step_size=step_size)
+                    mask_mesh.apply_scale(voxel_spacing=voxel_size)
+                    mask_mesh.origin_translation()
+                    maskV = mask_mesh.calculate_volume()
+                    del mask_mesh
+                    #endregion
+
+                    #region Processing im volume
+                    im = mask(im)
+                    if trim_artifacts:
+                        im = get_largest_object(im) #Mask can generate floating artifacts
+                        if not np.amax(im) > 0:
+                            return 1.0
+                    #region mesh
+                    mesh = mesh_from_array(im=im, level=level, step_size=step_size)
+                    if mesh.vertices is None:
+                        return 1.0
+                    mesh.apply_scale(voxel_spacing=voxel_size)
+                    mesh.origin_translation()
+                    meshV = mesh.calculate_volume()
+                    #endregion
+                    del im
+                    STL_P = (maskV - meshV) / maskV
+                    if STL_P < 0.0:
+                        STL_P = 0.0
+                    #endregion
+                    return STL_P
+                else:
+                    # region Image mesh
+                    mesh = mesh_from_array(im=im, level=level, step_size=step_size)
+                    if mesh.vertices is None:
+                        return 1.0
+                    mesh.apply_scale(voxel_spacing=voxel_size)
+                    mesh.origin_translation()
+                    meshV = mesh.calculate_volume()
+                    # endregion
+                    STL_P = (np.prod(np.array(im.shape)*voxel_size) - meshV) / np.prod(np.array(im.shape)*voxel_size)
+                    del im
+                    if STL_P < 0.0:
+                        STL_P = 0.0
+                    return STL_P
+            except Exception as e:
+                print(f"An error occurred: {e}\n")
+                return 1.0 #Assume empty. Porosity = 1.0
+        else:
+            return 1.0 #Assume empty. Porosity = 1.0
+        #endregion
+
+    # region Optimization function
+    try:
+        result = spot.root_scalar(lambda c: level_set(c) - target_porosity, x0=x0,
+                                  method=method,
+                                  xtol=xtol,
+                                  bracket=bracket)
+        print(f'Level set value found: c = {round(result.root, 6)}\n')
+        return result.root
+    except Exception as e:
+        print(f"STL_Poro_finder: An error occurred: {e}\n")
+        return 0.0
+    # endregion
 
 def im_Poro_finder(f, target_porosity, mask=None, im_seed=lambda f, c: np.where((f >= -c) & (f <= c), True, False),
                    trim_artifacts=True, bracket=None, x0=None):
@@ -90,13 +175,13 @@ def im_Poro_finder(f, target_porosity, mask=None, im_seed=lambda f, c: np.where(
                 Vt = np.count_nonzero(mask(np.ones_like(im).astype(bool)))
                 im = mask(im)
                 if trim_artifacts:
-                    im = trim_floating_artifacts(im)
+                    im = get_largest_object(im)
                 Vf = (Vt - np.count_nonzero(im)) / Vt
                 if Vf < 0.0:
                     Vf = 0.0
             else:
                 if trim_artifacts:
-                    im = trim_floating_artifacts(im)
+                    im = get_largest_object(im)
                 Vf = (np.prod(im.shape) - np.count_nonzero(im)) / np.prod(im.shape)
                 if Vf < 0.0:
                     Vf = 0.0

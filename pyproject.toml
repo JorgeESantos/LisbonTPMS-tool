@@ -28,9 +28,10 @@ dependencies = [
     "scipy>=1.15,<2.0",
     "porespy>=2.4,<3.0",
     "scikit-image>=0.24,<0.25; python_version < '3.13'",
-    #"scikit-image>=0.25,<0.26; python_version >= '3.13'",
     "pyvista>=0.40,<0.44.2",
-    "pypardiso>=0.4,<0.5"
+    "vtk>=9.3.0,<9.4",
+    "pypardiso>=0.4,<0.5",
+    "ipython>=8.0"
 ]
 
 [project.optional-dependencies]

@@ -11,7 +11,7 @@ J.E. Santos, R.B. Ruben, P.R. Fernandes, A.P.G. Castro, LISBON TPMS TOOL: An ope
 
 # Instalation
 
-Considering Python 3.10+ and after creating a Python working environment with pip and setuptools ready, LisbonTPMS-tool can be installed directly from GitHub, using pip and:
+Considering Python 3.10+ and up to 3.12. After creating a Python working environment with pip ready, LisbonTPMS-tool can be installed directly from GitHub, using pip and:
 
 (1) Directly from source, using Git
 

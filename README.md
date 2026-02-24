@@ -187,9 +187,9 @@ Figure 2: Cylinder representation of the same lattice presented in figure 1.
 
 ### Extracting triangular mesh
 
-From the generated image, the user can generate a triangular mesh and save it as a STL file for 3D printing purposes. Hexahedral 8-node FE meshes can be written and saved from the previously mentioned binary image for FE simulation applications.
+From the generated image, the user can generate a triangular mesh and save it as a STL or ply file for 3D printing purposes. Hexahedral 8-node FE meshes can be written and saved from the previously mentioned binary image for FE simulation applications.
 
-The manipulation and post-processing of the isosurface-extracted triangular mesh is a choice of the user to which the authors strongly recommend the consideration of trimesh [6] and pymeshlab [7] (Python library for MeshLab interface) as auxiliary tools. While the creation and export of the surface mesh is not dependent on any of these libraries, the mesh_functions module offers tools to post-process these types of meshes that are dependent on the mentioned libraries.
+The manipulation and post-processing of the isosurface-extracted triangular mesh is a choice of the user, to which the authors strongly recommend the consideration of trimesh [6] and pymeshlab [7] (Python library for MeshLab interface) as auxiliary tools. While the creation and export of the surface mesh is not dependent on any of these libraries, the mesh_functions module offers tools to post-process these types of meshes that are dependent on the mentioned libraries.
 
 
 ```python
@@ -197,12 +197,20 @@ The manipulation and post-processing of the isosurface-extracted triangular mesh
 from LisbonTPMStool.mesh_functions import mesh_from_array
 from LisbonTPMStool.im_seg_functions import PyVista_TriMeshes_plot
 
-vertices, faces, v_normals = mesh_from_array(im=SG.im, dimensions=SG.dimensions)
+#Create the mesh object
+mesh = mesh_from_array(SG.im)
 
-#Plot it
-mesh = [vertices, faces, 'oldlace', 1.0] #inpute to pass to PyVista_TriMeshes_plot
+#Adjust dimensions if desired, based on previously defined voxel_size
+mesh.origin_translation()
+mesh.apply_scale(SG.voxel_size)
 
-PyVista_TriMeshes_plot(meshes=[mesh], units='mm', name='Figure 3', show_edges=False, save_fig=True)
+#Plot it if you want
+mesh.mesh_show()
+
+#Alternatively
+colored_mesh = [vertices, faces, 'oldlace', 1.0] #input to pass to PyVista_TriMeshes_plot
+
+PyVista_TriMeshes_plot(meshes=[colored_mesh], units='mm', name='Figure 3', show_edges=False, save_fig=True)
 ```
 
 The output of this is present in figure 3.

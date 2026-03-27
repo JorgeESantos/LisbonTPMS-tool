@@ -1,4 +1,10 @@
-[![DOI](https://img.shields.io/badge/DOI-10.1016/j.simpa.2025.100747-blue?logo=doi)](https://doi.org/10.1016/j.simpa.2025.100747)
+# 📚 Citation
+
+## 📄 Paper
+[![DOI](https://img.shields.io/badge/DOI-10.1016%2Fj.simpa.2025.100747-blue)](https://doi.org/10.1016/j.simpa.2025.100747)
+
+## 💻 Code (archived on Zenodo)
+[![DOI](https://zenodo.org/badge/928881886.svg)](https://doi.org/10.5281/zenodo.19263479)
 
 # Summary
 

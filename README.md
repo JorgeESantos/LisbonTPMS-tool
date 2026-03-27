@@ -1,4 +1,4 @@
-![Static Badge](https://img.shields.io/badge/DOI-https%3A%2F%2Fdoi.org%2F10.1016%2Fj.simpa.2025.100747-blue)
+[![DOI](https://img.shields.io/badge/DOI-10.1016/j.simpa.2025.100747-blue?logo=doi)](https://doi.org/10.1016/j.simpa.2025.100747)
 
 # Summary
 
